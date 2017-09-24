@@ -58,17 +58,28 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 int main(int argc, char **argv)
 {
     struct arguments arguments;
+    struct stat st;
     double out;
+    int res;
 
-    /* Default values. */
     arguments.x = 0;
     arguments.n = 0;
 
-    /* Parse our arguments; every option seen by parse_opt will
-       be reflected in arguments. */
+    // calculate
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
     out = exponentiate(arguments.x, arguments.n);
-    printf("x^n / n! : %.4f\n", out);
+
+    // check stdout and output accordingly
+    res = fstat(1, &st);
+    if (res < 0) {
+        printf("Error when checking fstat, (error: %s)\n", strerror(errno));
+        return 0;
+    }
+    if (S_ISFIFO(st.st_mode))
+        printf("%.4f\n", out);
+    else
+        printf("x^n / n! : %.4f\n", out);
+
     return 0;
 }
 
