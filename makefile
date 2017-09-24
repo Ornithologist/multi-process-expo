@@ -5,7 +5,10 @@ default: test-master
 clean:
 	rm -rf worker master.o master
 
-worker: worker.c
+worker.o: worker.c
+	gcc -c -Wall -Werror -fpic -o worker.o worker.c
+
+worker: worker.o
 	gcc -g -o worker worker.c
 
 test-worker: worker
