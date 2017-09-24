@@ -33,13 +33,13 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 
     switch (key) {
         case 'x':
-            if (arg && atoi(arg))
+            if (arg && (atoi(arg) || strcmp(arg, "0") == 0))
                 arguments->x = atoi(arg);
             else
                 argp_error(state, "Invalid argument 'x'.");
             break;
         case 'n':
-            if (arg && atoi(arg))
+            if (arg && (atoi(arg) || strcmp(arg, "0") == 0))
                 arguments->n = atoi(arg);
             else
                 argp_error(state, "Invalid argument 'n'.");
@@ -67,11 +67,13 @@ int main(int argc, char **argv)
        be reflected in arguments. */
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
     out = exponentiate(arguments.x, arguments.n);
-    printf("Result is %.4f\n", out);
+    printf("x^n / n! : %.4f\n", out);
     return 0;
 }
 
 double exponentiate(int x, int n) {
+    if (n == 0)
+        return 1.0;
     unsigned long long denominator = factorial(n);
     unsigned long long nominator = my_pow(x, n);
     return nominator / (double) denominator;
