@@ -3,7 +3,7 @@ all: test-master
 default: test-master
 
 clean:
-	rm -rf worker master.o master
+	rm -rf worker.o worker master.o master
 
 worker.o: worker.c
 	gcc -c -Wall -Werror -fpic -o worker.o worker.c

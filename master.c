@@ -99,6 +99,13 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    // pipe
+    int fd[2];
+    if (pipe(fd) < 0) {
+        printf("Error when piping (error:%s)\n", strerror(errno));
+        return 0;
+    }
+
     // fork
     pid_t pid = fork();
     if (pid < 0)
@@ -106,82 +113,29 @@ int main(int argc, char **argv)
                strerror(errno));
 
     if (pid == 0) {
-        char *worker_args[6];  // FIXME: there must be a better way
-        worker_args[0] = args.worker_path;
-        worker_args[1] = "-x";
-        sprintf(worker_args[2], "%d", args.x);
-        worker_args[3] = "-n";
-        sprintf(worker_args[4], "%d", args.x);
-        worker_args[5] = NULL;
-        execvp(worker_args[0], worker_args);
+        dup2 (fd[1], STDOUT_FILENO);
+        close(fd[0]);
+        char *arg_x = malloc(10* sizeof(char *));
+        char *arg_n = malloc(10* sizeof(char *));
+        sprintf(arg_x, "%d", args.x);
+        sprintf(arg_n, "%d", args.n);
+        int res = execl(args.worker_path, args.worker_path, "-x", arg_x, "-n", arg_n, NULL);
+        if (res < 0) {
+            printf("Error when executing (error:%s)\n",
+                strerror(errno)); 
+            return 0;
+        }
     } else {
+        close(fd[1]);
         int wc = wait(NULL);
-        printf("pid: %d\n", wc);
+        if (wc < 0) {
+            printf("Wait error\n");
+        }
+        char c[7];
+        int r = read(fd[0], c, sizeof(char) * 7);
+        if(r > 0)
+            printf("PIPE INPUT = %s\n", c);
     }
 
     return 0;
-
-    // num_workers = (args.n < args.num_workers) ? args.n : args.num_workers;
-    // int pres, rfd, wfd;
-
-    // fds = malloc(num_workers * sizeof(int *));
-
-    // for (i = 0; i < num_workers; i++) {
-    //     // create pipe
-    //     fds[i] = malloc(2 * sizeof(int *));
-    //     pres = pipe(fds[i]);
-    //     if (pres < 0)
-    //         printf("Error when piping idx: %d (error:%s)\n", i,
-    //                strerror(errno));
-    //     rfd = fds[i][0];
-    //     wfd = fds[i][1];
-
-    //     // fork
-    //     pid_t pid = fork();
-    //     if (pid < 0)
-    //         printf("Error when forking idx: %d (error:%s)\n", i,
-    //                strerror(errno));
-
-    //     if (pid == 0) {
-    //         close(rfd);        // ?
-    //         char *worker_args[6];  // FIXME: there must be a better way
-    //         worker_args[0] = args.worker_path;
-    //         worker_args[1] = "-x";
-    //         sprintf(worker_args[2], "%d", args.x);
-    //         worker_args[3] = "-n";
-    //         sprintf(worker_args[4], "%d", args.x);
-    //         worker_args[5] = NULL;
-    //         execvp(worker_args[0], worker_args);
-    //     } else {
-    //         close(wfd);  // ?
-    //     }
-
-    //     /* Setup the epoll_event for this process */
-    //     event[i].events = EPOLLIN;
-
-    //     /* Parent process listening to read file descriptor */
-    //     event[i].data.fd = rfd;
-
-    //     /* Add rfd to event[i] or (Read) event on epoll_fds -- event[i] */
-    //     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, rfd, &event[i]);
-    // }
-
-    // finished = 0;
-    // int buffer_size = 7;
-
-    // while (!finished) {
-    //     struct epoll_event ev;
-    //     epoll_wait(epoll_fd, &ev, 1, -1);
-
-    //     char str[buffer_size];
-    //     ssize_t bytes = read(ev.data.fd, &str, buffer_size);
-
-    //     /* If the ev.data.fd has bytes added print, else wait */
-    //     if (bytes > 0)
-    //         printf("Read: %s\n", str);
-    //     else
-    //         epoll_ctl(epoll_fd, EPOLL_CTL_DEL, ev.data.fd, NULL);
-    // }
-
-    // return 0;
 }

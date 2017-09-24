@@ -70,7 +70,7 @@ int main(int argc, char **argv)
     out = exponentiate(arguments.x, arguments.n);
 
     // check stdout and output accordingly
-    res = fstat(1, &st);
+    res = fstat(fileno(stdout), &st);
     if (res < 0) {
         printf("Error when checking fstat, (error: %s)\n", strerror(errno));
         return 0;
