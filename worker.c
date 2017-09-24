@@ -2,14 +2,17 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 const char *argp_program_version = "multi-process- v0.1";
 const char *argp_program_bug_address = "<liu.ron@husky.neu.edu>";
 static char doc[] =
     "A multi-process program that calculates an exponential function.";
-static char args_doc[] = "...";
+static char args_doc[] = "BASE, POWER";
 static struct argp_option options[] = {
-    {"base", 'x', "COUNT", 0, "Base number."}, {"power", 'n', "COUNT", 0, "Power number."},
+    {"base", 'x', "BASE", 0, "BASE number."}, {"power", 'n', "POWER", 0, "POWER number."},
 };
 
 
@@ -30,16 +33,16 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 
     switch (key) {
         case 'x':
-            if (arg)
+            if (arg && atoi(arg))
                 arguments->x = atoi(arg);
             else
-                arguments->x++;
+                argp_error(state, "Invalid argument 'x'.");
             break;
         case 'n':
-            if (arg)
+            if (arg && atoi(arg))
                 arguments->n = atoi(arg);
             else
-                arguments->n++;
+                argp_error(state, "Invalid argument 'n'.");
             break;
         case ARGP_KEY_ARG:
             return 0;

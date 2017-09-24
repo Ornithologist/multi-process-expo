@@ -2,7 +2,7 @@ all: test-worker
 
 default: test-worker
 
-clean: clean-ckpt
+clean:
 	rm -rf worker
 
 worker: worker.c
@@ -12,14 +12,10 @@ test-worker: worker
 	./worker -x 2 -n 3
 
 gdb:
-	gdb --args ./worker -x 2 -n 3
+	gdb --args ./worker -x -n
 
-# master.o: master.c
-# 	gcc -c -Wall -Werror -fpic -o master.o master.c
-
-# master: master.o
-# 	gcc -g -o master master.o
-
+# master: master.c
+# 	gcc -c -Wall -Werror -fpic -o master master.c
 
 # test-master: worker master
 # 	./master --worker_path ./worker --num_workers 5 --wait_mechanism select -x 2 -n 12
