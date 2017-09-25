@@ -78,7 +78,7 @@ void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
                     struct epoll_event *evts, int *nregistrar, double *total_p)
 {
     int i, idx, cur_n;
-    struct epoll_event ev, cur_ev;
+    struct epoll_event ev;
     char *str = (char *)malloc(10 * sizeof(char *));
 
     epoll_wait(epoll_fd, &ev, 1, -1);
@@ -95,8 +95,7 @@ void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
     if (progress >= argsp->n) finished = 1;
 
     for (i = 0; i < nw; i++) {
-        cur_ev = evts[i];
-        if (cur_ev.data.fd == ev.data.fd) {
+        if (evts[i].data.fd == ev.data.fd) {
             idx = i;
             break;
         }
