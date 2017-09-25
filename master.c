@@ -28,8 +28,9 @@ struct arguments {
     char *worker_path, *wait_mechanism;
 };
 
-void spawn_a_worker(int idx, int n, int epoll_fd, int *fd, struct arguments *argsp,
-                    struct epoll_event *evp)
+void spawn_a_worker(int idx, int n, int epoll_fd, int *fd,
+                    struct arguments *argsp, struct epoll_event *evp,
+                    int *nregister)
 {
     int pres, rfd, wfd;
     // create pipe
@@ -61,49 +62,48 @@ void spawn_a_worker(int idx, int n, int epoll_fd, int *fd, struct arguments *arg
         close(wfd);
     }
 
-    /* Setup the epoll_event for this process */
-    evp->events = EPOLLIN;
-
-    /* Parent process listening to read file descriptor */
-    evp->data.fd = rfd;
-
-    /* Add rfd to evp or (Read) event on epoll_fds -- evp */
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, rfd, evp);
+    (*nregister) = n;       // worker idx is running job for n
+    evp->events = EPOLLIN;  // set up event
+    evp->data.fd = rfd;     // listen to read file descriptor
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, rfd, evp);  // add to epoll_fd
     return;
 }
 
 void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
-                      struct epoll_event *evts, double *total_p, int *pro_p,
-                      int *fin_p) {
-    int i, idx;
+                    struct epoll_event *evts, int *nregistrar, double *total_p,
+                    int *pro_p, int *fin_p)
+{
+    int i, idx, cur_n;
     struct epoll_event ev, cur_ev;
     char *str = (char *)malloc(10 * sizeof(char *));
 
     epoll_wait(epoll_fd, &ev, 1, -1);
     ssize_t bytes = read(ev.data.fd, str, 10);
-
     if (bytes <= 0) {
         epoll_ctl(epoll_fd, EPOLL_CTL_DEL, ev.data.fd, NULL);
         return;
     }
 
-    // check out and spawn
+    // check out
     double out = strtod(str, NULL);
     (*total_p) += out;
     (*pro_p) += 1;
-    if ((*pro_p) >= argsp->n)
-        (*fin_p) = 1;
-    if ((*pro_p) + nw > argsp->n)
-        return;
+    if ((*pro_p) >= argsp->n) (*fin_p) = 1;
 
-    for (i=0; i<nw; i++) {
+    for (i = 0; i < nw; i++) {
         cur_ev = evts[i];
         if (cur_ev.data.fd == ev.data.fd) {
             idx = i;
             break;
         }
     }
-    spawn_a_worker(idx, ((*pro_p) + nw - 1), epoll_fd, fds[idx], argsp, &evts[idx]);
+    cur_n = nregistrar[idx];
+    printf("worker %d: %d^%d / %d! : %.4f\n", idx, argsp->x, cur_n, cur_n, out);
+
+    // if job is fullfilled, do not spawn anymore
+    if ((*pro_p) + nw > argsp->n) return;
+    spawn_a_worker(idx, ((*pro_p) + nw - 1), epoll_fd, fds[idx], argsp,
+                   &evts[idx], &nregistrar[idx]);
     return;
 }
 
@@ -186,10 +186,12 @@ int main(int argc, char **argv)
     num_workers = (args.n < args.num_workers) ? args.n : args.num_workers;
     fds = malloc(num_workers * sizeof(int *));
     struct epoll_event events[num_workers];
+    int nregistrar[num_workers];
 
     for (i = 0; i < num_workers; i++) {
         fds[i] = malloc(2 * sizeof(int *));
-        spawn_a_worker(i, i, epoll_fd, fds[i], &args, &events[i]);
+        spawn_a_worker(i, i, epoll_fd, fds[i], &args, &events[i],
+                       &nregistrar[i]);
     }
 
     total = 0.0;
@@ -197,9 +199,9 @@ int main(int argc, char **argv)
     finished = 0;
 
     while (!finished) {
-        on_worker_done(epoll_fd, &args, num_workers, fds, events, &total,
-                         &progress, &finished);
+        on_worker_done(epoll_fd, &args, num_workers, fds, events, nregistrar,
+                       &total, &progress, &finished);
     }
-    printf("x^n / !n : %.4f\n", total);
+    printf("Final Result : %.4f\n", total);
     return 0;
 }
