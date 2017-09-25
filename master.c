@@ -42,15 +42,16 @@ void spawn_a_worker(int idx, int n, int epoll_fd, int *fd,
     // create pipe
     pres = pipe(fd);
     if (pres < 0)
-        printf("Error when piping idx: %d (error:%s)\n", idx, strerror(errno));
+        printf("Error when piping worker idx: %d (error:%s)\n", idx,
+               strerror(errno));
     rfd = fd[0];
     wfd = fd[1];
 
     // fork
     pid_t pid = fork();
     if (pid < 0)
-        printf("Error when forking idx: %d (error:%s)\n", idx, strerror(errno));
-
+        printf("Error when forking worker idx: %d (error:%s)\n", idx,
+               strerror(errno));
     if (pid == 0) {
         dup2(wfd, STDOUT_FILENO);
         close(rfd);
@@ -61,7 +62,8 @@ void spawn_a_worker(int idx, int n, int epoll_fd, int *fd,
         int res = execl(argsp->worker_path, argsp->worker_path, "-x", arg_x,
                         "-n", arg_n, NULL);
         if (res < 0) {
-            printf("Error when executing (error:%s)\n", strerror(errno));
+            printf("Error when executing worker %d (error:%s)\n", idx,
+                   strerror(errno));
             exit(1);
         }
     } else {
