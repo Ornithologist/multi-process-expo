@@ -14,6 +14,7 @@
 double total = 0.0;
 int progress = 0;
 int finished = 0;
+int **fds;
 
 // argument variables
 const char *argp_program_version = "multi-process- v0.1";
@@ -34,18 +35,17 @@ struct arguments {
     char *worker_path, *wait_mechanism;
 };
 
-void spawn_a_worker(int idx, int n, int epoll_fd, int *fd,
+void spawn_a_worker(int idx, int n, int epoll_fd,
                     struct arguments *argsp, struct epoll_event *evp,
                     int *nregister)
 {
-    int pres, rfd, wfd;
+    int rfd, wfd;
     // create pipe
-    pres = pipe(fd);
-    if (pres < 0)
+    if (pipe(fds[idx]) < 0)
         printf("Error when piping worker idx: %d (error:%s)\n", idx,
                strerror(errno));
-    rfd = fd[0];
-    wfd = fd[1];
+    rfd = fds[idx][0];
+    wfd = fds[idx][1];
 
     // fork
     pid_t pid = fork();
@@ -77,7 +77,7 @@ void spawn_a_worker(int idx, int n, int epoll_fd, int *fd,
     return;
 }
 
-void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
+void on_worker_done(int epoll_fd, struct arguments *argsp, int nw,
                     struct epoll_event *evts, int *nregistrar)
 {
     int i, idx, cur_n;
@@ -107,7 +107,7 @@ void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
 
     // if job is fullfilled, do not spawn anymore
     if (progress + nw > argsp->n) return;
-    spawn_a_worker(idx, (progress + nw - 1), epoll_fd, fds[idx], argsp,
+    spawn_a_worker(idx, (progress + nw - 1), epoll_fd, argsp,
                    &evts[idx], &nregistrar[idx]);
     return;
 }
@@ -166,7 +166,7 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 int main(int argc, char **argv)
 {
     struct arguments args;
-    int i, num_workers, epoll_fd, **fds;
+    int i, num_workers, epoll_fd;
     epoll_fd = epoll_create(1);
 
     args.x = 0;
@@ -194,12 +194,12 @@ int main(int argc, char **argv)
 
     for (i = 0; i < num_workers; i++) {
         fds[i] = malloc(2 * sizeof(int *));
-        spawn_a_worker(i, i, epoll_fd, fds[i], &args, &events[i],
+        spawn_a_worker(i, i, epoll_fd, &args, &events[i],
                        &nregistrar[i]);
     }
 
     while (!finished) {
-        on_worker_done(epoll_fd, &args, num_workers, fds, events, nregistrar);
+        on_worker_done(epoll_fd, &args, num_workers, events, nregistrar);
     }
     printf("Final Result : %.4f\n", total);
     return 0;
