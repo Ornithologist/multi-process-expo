@@ -1,6 +1,6 @@
-all: test-master
+all: test-epoll
 
-default: test-master
+default: test-epoll
 
 clean:
 	rm -rf worker.o worker master.o master
@@ -23,7 +23,10 @@ master.o: master.c
 master: master.o
 	gcc -g -o master master.o
 
-test-master: worker master
+test-epoll: worker master
+	./master --worker_path ./worker --num_workers 5 --wait_mechanism epoll -x 2 -n 12
+
+test-select: worker master
 	./master --worker_path ./worker --num_workers 5 --wait_mechanism select -x 2 -n 12
 
 dist:

@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 // global varaibles
@@ -15,6 +16,7 @@ double total = 0.0;
 int progress = 0;
 int finished = 0;
 int **fds, *nregistrar;
+fd_set rfds;
 struct epoll_event *events;
 
 // argument variables
@@ -39,6 +41,7 @@ struct arguments {
 void spawn_a_worker(int idx, int epoll_fd, struct arguments *argsp)
 {
     int rfd, wfd, n;
+    fds[idx] = malloc(2 * sizeof(int *));
     n = nregistrar[idx];
     // create pipe
     if (pipe(fds[idx]) < 0)
@@ -70,22 +73,54 @@ void spawn_a_worker(int idx, int epoll_fd, struct arguments *argsp)
         close(wfd);
     }
 
-    events[idx].events = EPOLLIN;  // set up event
-    events[idx].data.fd = rfd;     // listen to read file descriptor
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, rfd, &events[idx]);  // add to epoll_fd
+    if (strcmp(argsp->wait_mechanism, "epoll") == 0) {
+        events[idx].events = EPOLLIN;  // set up event
+        events[idx].data.fd = rfd;     // listen to read file descriptor
+        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, rfd, &events[idx]);  // add to epoll_fd
+    } else if (strcmp(argsp->wait_mechanism, "select") == 0) {
+        FD_SET(rfd, &rfds);
+    }
     return;
 }
 
 void on_worker_done(int epoll_fd, struct arguments *argsp, int nw)
 {
-    int i, idx, cur_n;
-    struct epoll_event ev;
+    int i, idx, cur_n, cur_fd;
     char *str = (char *)malloc(10 * sizeof(char *));
 
-    epoll_wait(epoll_fd, &ev, 1, -1);
-    ssize_t bytes = read(ev.data.fd, str, 10);
+    if (strcmp(argsp->wait_mechanism, "epoll") == 0) {
+        struct epoll_event ev;
+        epoll_wait(epoll_fd, &ev, 1, -1);
+        cur_fd = ev.data.fd;
+    } else if (strcmp(argsp->wait_mechanism, "select") == 0) {
+        int max_fd = 1;
+        struct timeval timeout;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+        for (i=0; i<nw; i++) {
+            max_fd = (max_fd > fds[i][0]) ? max_fd : fds[i][0];
+            max_fd = (max_fd > fds[i][1]) ? max_fd : fds[i][1];
+        }
+        ++max_fd;
+        int ret = select(max_fd, &rfds, NULL, NULL, &timeout);
+        if (ret == -1) {
+            perror("select()");
+        } else if (ret) {
+            for (i=0; i<nw; i++) {
+                if (FD_ISSET(fds[i][0], &rfds)) {
+                    cur_fd = fds[i][0];
+                    break;
+                }
+            }
+        } else {
+            return;
+        }
+    }
+    
+    ssize_t bytes = read(cur_fd, str, 10);
     if (bytes <= 0) {
-        epoll_ctl(epoll_fd, EPOLL_CTL_DEL, ev.data.fd, NULL);
+        if (strcmp(argsp->wait_mechanism, "epoll") == 0)
+            epoll_ctl(epoll_fd, EPOLL_CTL_DEL, cur_fd, NULL);
         return;
     }
 
@@ -95,7 +130,7 @@ void on_worker_done(int epoll_fd, struct arguments *argsp, int nw)
     progress += 1;
     if (progress >= argsp->n) finished = 1;
     for (i = 0; i < nw; i++) {
-        if (events[i].data.fd == ev.data.fd) {
+        if (fds[i][0] == cur_fd) {
             idx = i;
             break;
         }
@@ -165,7 +200,8 @@ int main(int argc, char **argv)
 {
     struct arguments args;
     int i, num_workers, epoll_fd;
-    epoll_fd = epoll_create(1);
+    epoll_fd = epoll_create(1);     // for epoll
+    FD_ZERO(&rfds);                 // for select
 
     args.x = 0;
     args.n = 0;
@@ -191,7 +227,6 @@ int main(int argc, char **argv)
     events = malloc(num_workers * sizeof(struct epoll_event *));
 
     for (i = 0; i < num_workers; i++) {
-        fds[i] = malloc(2 * sizeof(int *));
         nregistrar[i] = i;
         spawn_a_worker(i, epoll_fd, &args);
     }
