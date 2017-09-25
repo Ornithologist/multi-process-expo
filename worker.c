@@ -76,7 +76,7 @@ int main(int argc, char **argv)
         return 0;
     }
     if (S_ISFIFO(st.st_mode))
-        printf("%.4f\n", out);
+        printf("%.4f", out);
     else
         printf("x^n / n! : %.4f\n", out);
 
