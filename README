@@ -1,0 +1,86 @@
+-----------------------------------------------
+Intro
+-----------------------------------------------
+
+multi-process exponential is a program to calculate the exponential value of number e. The algorithm can be wrtten like:
+    e^x = 1 + x^1/1! + x^2/2! + x^3/3! + ... + x^n/n!
+
+It adopts the master-worker architecture, which populates multiple child processes to calculate each individual (x^n/n!). The master program waits for the progress of each worker program using epoll() or select().
+
+worker.c describes the worker model, while master.c describes how master interacts with worker instances.
+
+In worker.c, exponentiate() calculates the value of (x^n/n!) and convert it into a double. Noe that in 64-bit systems, the largest double is 2^53. Hence this program does not work for (x^n)s or (n!)s that is larger than 2^53.
+
+In master.c, spawn_a_worker() describes how master spawns a new child worker; scan_workers() determins whether any reading end of a pipe is ready;  on_rfd_ready() reads data from the ready read files and spawns a new child process if necessary.
+
+System calls including pipe(), fork(), execl(), dup2() are used in this program.
+
+
+
+-----------------------------------------------
+Build
+-----------------------------------------------
+
+To build, use:
+    make
+
+You may want to use 
+    make clean
+to clean up the previous compilation.
+
+Use
+    make worker
+to make the worker executable.
+
+Use
+    make master
+to compile the master executable, together with the worker executable.
+
+
+
+-----------------------------------------------
+Run
+-----------------------------------------------
+
+To run, use
+    ./master --worker_path <WORKER_PATH> --num_workers <NUM_WORKERS> --wait_mechanism <MECHANISM> -x <X> -n <N>
+where
+    WORKER_PATH is the path of the worker executable (see below for detail);
+    NUM_WORKERS is the maximum number of child worker processes that can be spawned simultaneously;
+    MECHANISM is the mechanism used by master to wait for worker processes, right now it supports 'select' and 'epoll';
+    X is the power in the exponential expression of number e;
+    N is the number of components in the polynomial function;
+
+On success of the master execution, you will see the message "Final Result : <value>" appear after a series of worker messages.
+
+Use
+    ./worker -x <X> -n <N>
+where
+    X is x in the (x^n/n!) expression;
+    N is n in the (x^n/n!) expression;
+
+On success of the master execution, you will see the message "x^n / n! : <value>" appear.
+
+
+
+-----------------------------------------------
+Test
+-----------------------------------------------
+
+To test, use
+    make test-epoll
+to test the master program with x value 2, n value 12, and 5 workers using epoll mechanism
+
+Use 
+    make test-select
+to test the same call in select mechanism
+
+
+
+-----------------------------------------------
+Limitation
+-----------------------------------------------
+
+The program cannot calculate any single expression that is bigger than 2^53 in 64-bit systems.
+
+For example, when x is 2, and n is 60, the single expression x^n is bigger than 2^53. The resulting value from master program would be far from e^2. 

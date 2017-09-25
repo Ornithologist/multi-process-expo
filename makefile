@@ -20,7 +20,7 @@ gdb:
 master.o: master.c
 	gcc -c -Wall -Werror -fpic -o master.o master.c
 
-master: master.o
+master: master.o worker
 	gcc -g -o master master.o
 
 test-epoll: worker master
