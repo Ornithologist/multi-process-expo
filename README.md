@@ -9,13 +9,13 @@ e^x = 1 + x^1/1! + x^2/2! + x^3/3! + ... + x^n/n!
 
 It adopts the master-worker architecture, which populates multiple child processes to calculate each individual **(x^n/n!)**. The master program waits for the progress of each worker program using *epoll()* or *select()*.
 
-[worker.c](https://github.com/Ornithologist/multi-process-expo/blob/master/worker.c) describes the worker model, while [master.c](https://github.com/Ornithologist/multi-process-expo/blob/master/master.c) describes how master interacts with worker instances.
+[worker.c](https://github.com/Ornithologist/multi-process-expo/blob/master/worker.c) describes the worker model, and [master.c](https://github.com/Ornithologist/multi-process-expo/blob/master/master.c) describes how master interacts with worker instances.
 
 In [worker.c](https://github.com/Ornithologist/multi-process-expo/blob/master/worker.c), *exponentiate()* calculates the value of **(x^n/n!)** and convert it into a double. Noe that in 64-bit systems, the largest double is *2^53*. Hence this program does not work for **(x^n)s** or **(n!)s** that is larger than *2^53*.
 
 In [master.c](https://github.com/Ornithologist/multi-process-expo/blob/master/master.c), *spawn_a_worker()* describes how master spawns a new child worker; *scan_workers()* determins whether any reading end of a pipe is ready;  *on_rfd_ready()* reads data from the ready read files and spawns a new child process if necessary.
 
-System calls including *pipe()*, *fork()*, *execl()*, *dup2()* are used in this program.
+System calls *pipe()*, *fork()*, *execl()*, *dup2()* are used in this program.
 
 
 ## Build
