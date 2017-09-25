@@ -86,6 +86,8 @@ make test-select
 ```
 to test the same call with *select* mechanism
 
+Note that ```make check``` directly points to ```make test-epoll```.
+
 
 
 ## Limitation

@@ -2,6 +2,8 @@ all: test-epoll
 
 default: test-epoll
 
+check: test-epoll
+
 clean:
 	rm -rf worker.o worker master.o master
 
