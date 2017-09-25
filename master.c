@@ -14,7 +14,7 @@
 double total = 0.0;
 int progress = 0;
 int finished = 0;
-int **fds;
+int **fds, *nregistrar;
 
 // argument variables
 const char *argp_program_version = "multi-process- v0.1";
@@ -35,11 +35,11 @@ struct arguments {
     char *worker_path, *wait_mechanism;
 };
 
-void spawn_a_worker(int idx, int n, int epoll_fd,
-                    struct arguments *argsp, struct epoll_event *evp,
-                    int *nregister)
+void spawn_a_worker(int idx, int epoll_fd,
+                    struct arguments *argsp, struct epoll_event *evp)
 {
-    int rfd, wfd;
+    int rfd, wfd, n;
+    n = nregistrar[idx];
     // create pipe
     if (pipe(fds[idx]) < 0)
         printf("Error when piping worker idx: %d (error:%s)\n", idx,
@@ -70,7 +70,6 @@ void spawn_a_worker(int idx, int n, int epoll_fd,
         close(wfd);
     }
 
-    (*nregister) = n;       // worker idx is running job for n
     evp->events = EPOLLIN;  // set up event
     evp->data.fd = rfd;     // listen to read file descriptor
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, rfd, evp);  // add to epoll_fd
@@ -78,7 +77,7 @@ void spawn_a_worker(int idx, int n, int epoll_fd,
 }
 
 void on_worker_done(int epoll_fd, struct arguments *argsp, int nw,
-                    struct epoll_event *evts, int *nregistrar)
+                    struct epoll_event *evts)
 {
     int i, idx, cur_n;
     struct epoll_event ev;
@@ -104,11 +103,11 @@ void on_worker_done(int epoll_fd, struct arguments *argsp, int nw,
     }
     cur_n = nregistrar[idx];
     printf("worker %d: %d^%d / %d! : %.4f\n", idx, argsp->x, cur_n, cur_n, out);
+    nregistrar[idx] = progress + nw - 1;
 
     // if job is fullfilled, do not spawn anymore
     if (progress + nw > argsp->n) return;
-    spawn_a_worker(idx, (progress + nw - 1), epoll_fd, argsp,
-                   &evts[idx], &nregistrar[idx]);
+    spawn_a_worker(idx, epoll_fd, argsp, &evts[idx]);
     return;
 }
 
@@ -189,17 +188,17 @@ int main(int argc, char **argv)
     // where the pool is stored
     num_workers = (args.n < args.num_workers) ? args.n : args.num_workers;
     fds = malloc(num_workers * sizeof(int *));
+    nregistrar = malloc(num_workers * sizeof(int *));
     struct epoll_event events[num_workers];
-    int nregistrar[num_workers];
 
     for (i = 0; i < num_workers; i++) {
         fds[i] = malloc(2 * sizeof(int *));
-        spawn_a_worker(i, i, epoll_fd, &args, &events[i],
-                       &nregistrar[i]);
+        nregistrar[i] = i;
+        spawn_a_worker(i, epoll_fd, &args, &events[i]);
     }
 
     while (!finished) {
-        on_worker_done(epoll_fd, &args, num_workers, events, nregistrar);
+        on_worker_done(epoll_fd, &args, num_workers, events);
     }
     printf("Final Result : %.4f\n", total);
     return 0;
