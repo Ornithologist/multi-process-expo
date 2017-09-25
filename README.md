@@ -21,18 +21,26 @@ System calls *pipe()*, *fork()*, *execl()*, *dup2()* are used in this program.
 ## Build
 
 To build, use:
-```make```
+```
+make
+```
 
 You may want to use 
-```make clean````
+```
+make clean
+```
 to clean up the previous compilation.
 
 Use
-```make worker```
+```
+make worker
+```
 to make the worker executable.
 
 Use
-```make master```
+```
+make master
+```
 to compile the master executable, together with the worker executable.
 
 
@@ -40,7 +48,9 @@ to compile the master executable, together with the worker executable.
 ## Run
 
 To run, use
-```./master --worker_path <WORKER_PATH> --num_workers <NUM_WORKERS> --wait_mechanism <MECHANISM> -x <X> -n <N>```
+```
+./master --worker_path <WORKER_PATH> --num_workers <NUM_WORKERS> --wait_mechanism <MECHANISM> -x <X> -n <N>
+```
 where
 * WORKER_PATH is the path of the worker executable (see below for detail);
 * NUM_WORKERS is the maximum number of child worker processes that can be spawned simultaneously;
@@ -51,7 +61,9 @@ where
 On success of the master execution, you will see the message ```Final Result : <value>``` appear after a series of worker messages.
 
 Use
-```./worker -x <X> -n <N>```
+```
+./worker -x <X> -n <N>
+```
 where
 * X is x in the **(x^n/n!)** expression;
 * N is n in the **(x^n/n!)** expression;
@@ -63,11 +75,15 @@ On success of the master execution, you will see the message ```x^n / n! : <valu
 ## Test
 
 To test, use
-```make test-epoll```
+```
+make test-epoll
+```
 to test the master program with *x* value 2, *n* value 12, and 5 workers using *epoll* mechanism
 
 Use 
-```make test-select```
+```
+make test-select
+```
 to test the same call with *select* mechanism
 
 
