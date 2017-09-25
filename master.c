@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 // global varaibles
+double total = 0.0;
 int progress = 0;
 int finished = 0;
 
@@ -75,7 +76,7 @@ void spawn_a_worker(int idx, int n, int epoll_fd, int *fd,
 }
 
 void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
-                    struct epoll_event *evts, int *nregistrar, double *total_p)
+                    struct epoll_event *evts, int *nregistrar)
 {
     int i, idx, cur_n;
     struct epoll_event ev;
@@ -90,10 +91,9 @@ void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
 
     // check out
     double out = strtod(str, NULL);
-    (*total_p) += out;
+    total += out;
     progress += 1;
     if (progress >= argsp->n) finished = 1;
-
     for (i = 0; i < nw; i++) {
         if (evts[i].data.fd == ev.data.fd) {
             idx = i;
@@ -163,7 +163,6 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 
 int main(int argc, char **argv)
 {
-    double total = 0.0;
     struct arguments args;
     int i, num_workers, epoll_fd, **fds;
     epoll_fd = epoll_create(1);
@@ -198,8 +197,7 @@ int main(int argc, char **argv)
     }
 
     while (!finished) {
-        on_worker_done(epoll_fd, &args, num_workers, fds, events, nregistrar,
-                       &total);
+        on_worker_done(epoll_fd, &args, num_workers, fds, events, nregistrar);
     }
     printf("Final Result : %.4f\n", total);
     return 0;
