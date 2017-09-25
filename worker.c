@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 const char *argp_program_version = "multi-process- v0.1";
@@ -13,9 +13,9 @@ static char doc[] =
     "A multi-process program that calculates an exponential function.";
 static char args_doc[] = "BASE, POWER";
 static struct argp_option options[] = {
-    {"base", 'x', "BASE", 0, "BASE number."}, {"power", 'n', "POWER", 0, "POWER number."},
+    {"base", 'x', "BASE", 0, "BASE number."},
+    {"power", 'n', "POWER", 0, "POWER number."},
 };
-
 
 struct arguments {
     int x, n;
@@ -83,25 +83,25 @@ int main(int argc, char **argv)
     return 0;
 }
 
-double exponentiate(int x, int n) {
-    if (n == 0)
-        return 1.0;
+double exponentiate(int x, int n)
+{
+    if (n == 0) return 1.0;
     unsigned long long denominator = factorial(n);
     unsigned long long nominator = my_pow(x, n);
-    return nominator / (double) denominator;
+    return nominator / (double)denominator;
 }
 
-unsigned long long factorial(int n) {
+unsigned long long factorial(int n)
+{
     unsigned long long base = 1;
     int i = 0;
-    while ((++i) <= n)
-        base = base * i;
+    while ((++i) <= n) base = base * i;
     return base;
 }
 
-unsigned long long my_pow(int base, int expo) {
+unsigned long long my_pow(int base, int expo)
+{
     unsigned long long result = 1;
-    while ((--expo) >= 0)
-        result = result * base;
+    while ((--expo) >= 0) result = result * base;
     return result;
 }

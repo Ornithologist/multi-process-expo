@@ -6,9 +6,9 @@
 #include <sys/epoll.h>
 #include <sys/select.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 // global varaibles
@@ -76,12 +76,14 @@ void spawn_a_worker(int idx, int epoll_fd, struct arguments *argsp)
     if (strcmp(argsp->wait_mechanism, "epoll") == 0) {
         events[idx].events = EPOLLIN;  // set up event
         events[idx].data.fd = rfd;     // listen to read file descriptor
-        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, rfd, &events[idx]);  // add to epoll_fd
+        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, rfd,
+                  &events[idx]);  // add to epoll_fd
     }
     return;
 }
 
-void on_rfd_ready(int cur_fd, int epoll_fd, struct arguments *argsp, int nw) {
+void on_rfd_ready(int cur_fd, int epoll_fd, struct arguments *argsp, int nw)
+{
     int i, idx, cur_n;
     char *str = (char *)malloc(10 * sizeof(char *));
     ssize_t bytes = read(cur_fd, str, 10);
@@ -118,8 +120,7 @@ void scan_workers(int epoll_fd, struct arguments *argsp, int nw)
 {
     int i;
     FD_ZERO(&rfds);
-    for (i=0; i<nw; i++)
-        FD_SET(fds[i][0], &rfds);
+    for (i = 0; i < nw; i++) FD_SET(fds[i][0], &rfds);
 
     if (strcmp(argsp->wait_mechanism, "epoll") == 0) {
         struct epoll_event ev;
@@ -130,7 +131,7 @@ void scan_workers(int epoll_fd, struct arguments *argsp, int nw)
         struct timeval timeout;
         timeout.tv_sec = 1;
         timeout.tv_usec = 0;
-        for (i=0; i<nw; i++) {
+        for (i = 0; i < nw; i++) {
             max_fd = (max_fd > fds[i][0]) ? max_fd : fds[i][0];
             max_fd = (max_fd > fds[i][1]) ? max_fd : fds[i][1];
         }
@@ -139,7 +140,7 @@ void scan_workers(int epoll_fd, struct arguments *argsp, int nw)
         if (ret == -1) {
             perror("select()");
         } else if (ret) {
-            for (i=0; i<nw; i++) {
+            for (i = 0; i < nw; i++) {
                 if (FD_ISSET(fds[i][0], &rfds)) {
                     on_rfd_ready(fds[i][0], epoll_fd, argsp, nw);
                 }
@@ -205,8 +206,8 @@ int main(int argc, char **argv)
 {
     struct arguments args;
     int i, num_workers, epoll_fd;
-    epoll_fd = epoll_create(1);     // for epoll
-    FD_ZERO(&rfds);                 // for select
+    epoll_fd = epoll_create(1);  // for epoll
+    FD_ZERO(&rfds);              // for select
 
     args.x = 0;
     args.n = 0;
