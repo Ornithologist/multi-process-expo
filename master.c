@@ -10,6 +10,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+// global varaibles
+int progress = 0;
+int finished = 0;
+
+// argument variables
 const char *argp_program_version = "multi-process- v0.1";
 const char *argp_program_bug_address = "<liu.ron@husky.neu.edu>";
 static char doc[] =
@@ -70,8 +75,7 @@ void spawn_a_worker(int idx, int n, int epoll_fd, int *fd,
 }
 
 void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
-                    struct epoll_event *evts, int *nregistrar, double *total_p,
-                    int *pro_p, int *fin_p)
+                    struct epoll_event *evts, int *nregistrar, double *total_p)
 {
     int i, idx, cur_n;
     struct epoll_event ev, cur_ev;
@@ -87,8 +91,8 @@ void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
     // check out
     double out = strtod(str, NULL);
     (*total_p) += out;
-    (*pro_p) += 1;
-    if ((*pro_p) >= argsp->n) (*fin_p) = 1;
+    progress += 1;
+    if (progress >= argsp->n) finished = 1;
 
     for (i = 0; i < nw; i++) {
         cur_ev = evts[i];
@@ -101,8 +105,8 @@ void on_worker_done(int epoll_fd, struct arguments *argsp, int nw, int **fds,
     printf("worker %d: %d^%d / %d! : %.4f\n", idx, argsp->x, cur_n, cur_n, out);
 
     // if job is fullfilled, do not spawn anymore
-    if ((*pro_p) + nw > argsp->n) return;
-    spawn_a_worker(idx, ((*pro_p) + nw - 1), epoll_fd, fds[idx], argsp,
+    if (progress + nw > argsp->n) return;
+    spawn_a_worker(idx, (progress + nw - 1), epoll_fd, fds[idx], argsp,
                    &evts[idx], &nregistrar[idx]);
     return;
 }
@@ -160,9 +164,9 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 
 int main(int argc, char **argv)
 {
-    double total;
+    double total = 0.0;
     struct arguments args;
-    int i, num_workers, epoll_fd, **fds, finished, progress;
+    int i, num_workers, epoll_fd, **fds;
     epoll_fd = epoll_create(1);
 
     args.x = 0;
@@ -194,13 +198,9 @@ int main(int argc, char **argv)
                        &nregistrar[i]);
     }
 
-    total = 0.0;
-    progress = 0;
-    finished = 0;
-
     while (!finished) {
         on_worker_done(epoll_fd, &args, num_workers, fds, events, nregistrar,
-                       &total, &progress, &finished);
+                       &total);
     }
     printf("Final Result : %.4f\n", total);
     return 0;
